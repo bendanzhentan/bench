@@ -1,0 +1,11 @@
+.idea
+.idea/
+.DS_Store
+*.DS_Store
+*/.idea
+*/.idea/*
+*/.idea/
+*.swp
+go-ethereum/signer/fourbyte/4byte.json
+main
+bench
