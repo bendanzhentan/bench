@@ -2,11 +2,10 @@ package simplecall
 
 import (
 	"context"
-	"keroro520/bench/util"
-	"math/big"
-
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/ethclient"
+	"keroro520/bench/util"
+	"math/big"
 )
 
 // TODO formalize the config when load

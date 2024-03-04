@@ -5,6 +5,8 @@ import (
 	"keroro520/bench/spec/simplecall"
 	"keroro520/bench/spec/simpletransfer"
 	"os"
+	"os/signal"
+	"syscall"
 
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/ethereum/go-ethereum/log"
@@ -33,7 +35,7 @@ func main() {
 		Action: func(context *cli.Context) error {
 			rpcURL := context.String("rpc-url")
 			configPath := context.String("config-path")
-			outputPath := context.String("output-path")
+			_ = context.String("output-path")
 
 			benchConfig, err := core.LoadConfig(configPath)
 			if err != nil {
@@ -47,14 +49,14 @@ func main() {
 
 			switch benchConfig.TxType {
 			case "simpletransfer":
-				err = simpletransfer.Run(client, benchConfig.SimpleTransfer, outputPath)
+				err = simpletransfer.NewSpec(benchConfig.SimpleTransfer).Run(context.Context, client)
 				if err != nil {
-					log.Crit("Failed to run GenerateSimpleTransferPayloads", "err", err)
+					log.Crit("Failed to run simpletransfer", "err", err)
 				}
 			case "simplecall":
-				err = simplecall.Run(client, benchConfig.SimpleCall, outputPath)
+				err = simplecall.NewSpec(benchConfig.SimpleCall).Run(context.Context, client)
 				if err != nil {
-					log.Crit("Failed to run GenerateSimpleCallPayloads", "err", err)
+					log.Crit("Failed to run simplecall", "err", err)
 				}
 			default:
 				log.Crit("Unknown transaction type: %s", benchConfig.TxType)
@@ -63,6 +65,14 @@ func main() {
 			return nil
 		},
 	}
+
+	go func() {
+		stop := make(chan os.Signal, 1)
+		signal.Notify(stop, syscall.SIGINT, syscall.SIGTERM)
+		<-stop
+		log.Info("Received SIGINT or SIGTERM. Shutting down gracefully...")
+		os.Exit(0)
+	}()
 
 	err := app.Run(os.Args)
 	if err != nil {
