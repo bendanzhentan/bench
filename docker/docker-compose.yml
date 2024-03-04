@@ -6,11 +6,12 @@ services:
     image: ghcr.io/foundry-rs/foundry:nightly-3df3e0c0d72dedcba3ea57afd2f57ebd231624dd
     entrypoint: |
       anvil
-        --no-mining
         --host 0.0.0.0
         --port 8545
         --init /genesis.json
-
+        --optimism
+        --no-mining
+        --disable-block-gas-limit
     ports:
       - "8545:8545"
     volumes:
