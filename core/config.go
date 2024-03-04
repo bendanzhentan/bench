@@ -7,9 +7,9 @@ import (
 )
 
 type Config struct {
-	TxType         string
-	SimpleTransfer simpletransfer.Config
-	SimpleCall     simplecall.Config
+	TxType         string                `toml:"txtype"`
+	SimpleTransfer simpletransfer.Config `toml:"simpletransfer"`
+	SimpleCall     simplecall.Config     `toml:"simplecall"`
 }
 
 func LoadConfig(configFile string) (*Config, error) {

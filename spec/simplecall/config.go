@@ -1,11 +1,11 @@
 package simplecall
 
 type Config struct {
-	TxnsCount       int
-	PrivKeys        []string
-	ContractAddress string
-	Calldata        string
-	TxValue         uint64
-	TxGasPrice      uint64
-	TxGasLimit      uint64
+	TxnsCount       int      `toml:"txnscount"`
+	PrivKeys        []string `toml:"privkeys"`
+	ContractAddress string   `toml:"contractaddress"`
+	Calldata        string   `toml:"calldata"`
+	TxValue         uint64   `toml:"txvalue"`
+	TxGasPrice      uint64   `toml:"txgasprice"`
+	TxGasLimit      uint64   `toml:"txgaslimit"`
 }
