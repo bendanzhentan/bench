@@ -1,16 +1,13 @@
 package main
 
 import (
+	"github.com/ethereum/go-ethereum/ethclient"
+	"github.com/ethereum/go-ethereum/log"
+	"github.com/urfave/cli/v2"
 	"keroro520/bench/core"
 	"keroro520/bench/spec/simplecall"
 	"keroro520/bench/spec/simpletransfer"
 	"os"
-	"os/signal"
-	"syscall"
-
-	"github.com/ethereum/go-ethereum/ethclient"
-	"github.com/ethereum/go-ethereum/log"
-	"github.com/urfave/cli/v2"
 )
 
 func main() {
@@ -49,12 +46,12 @@ func main() {
 
 			switch benchConfig.TxType {
 			case "simpletransfer":
-				err = simpletransfer.NewSpec(benchConfig.SimpleTransfer).Run(context.Context, client)
+				err = simpletransfer.NewSpec(*benchConfig.SimpleTransfer).Run(context.Context, client)
 				if err != nil {
 					log.Crit("Failed to run simpletransfer", "err", err)
 				}
 			case "simplecall":
-				err = simplecall.NewSpec(benchConfig.SimpleCall).Run(context.Context, client)
+				err = simplecall.NewSpec(*benchConfig.SimpleCall).Run(context.Context, client)
 				if err != nil {
 					log.Crit("Failed to run simplecall", "err", err)
 				}
@@ -66,13 +63,13 @@ func main() {
 		},
 	}
 
-	go func() {
-		stop := make(chan os.Signal, 1)
-		signal.Notify(stop, syscall.SIGINT, syscall.SIGTERM)
-		<-stop
-		log.Info("Received SIGINT or SIGTERM. Shutting down gracefully...")
-		os.Exit(0)
-	}()
+	//go func() {
+	//	stop := make(chan os.Signal, 1)
+	//	signal.Notify(stop, syscall.SIGINT, syscall.SIGTERM)
+	//	<-stop
+	//	log.Info("Received SIGINT or SIGTERM. Shutting down gracefully...")
+	//	os.Exit(0)
+	//}()
 
 	err := app.Run(os.Args)
 	if err != nil {
