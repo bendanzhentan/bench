@@ -1,6 +1,6 @@
 module keroro520/bench
 
-go 1.21
+go 1.20
 
 require (
 	github.com/BurntSushi/toml v1.3.2
@@ -66,6 +66,7 @@ require (
 	golang.org/x/mod v0.14.0 // indirect
 	golang.org/x/sync v0.6.0 // indirect
 	golang.org/x/sys v0.17.0 // indirect
+	golang.org/x/term v0.17.0 // indirect
 	golang.org/x/text v0.14.0 // indirect
 	golang.org/x/tools v0.16.1 // indirect
 	google.golang.org/protobuf v1.31.0 // indirect
