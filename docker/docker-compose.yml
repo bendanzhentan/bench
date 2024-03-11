@@ -1,10 +1,13 @@
 version: '3'
 services:
   go-ethereum:
-    image: ethereum/client-go:release-1.13
+    image: ethereum/client-go:latest
     volumes:
       - ./go-ethereum/genesis.json:/tmp/genesis.json
+      - ./go-ethereum/jwtsecret:/jwtsecret
     entrypoint: >
-        sh -c "geth --datadir /ethereum --networkid 1234 init /tmp/genesis.json && geth --dev --datadir /ethereum --networkid 1234 --http --http.addr 0.0.0.0 --http.port 8545 --http.api eth,net,web3,debug,personal,txpool --allow-insecure-unlock --nodiscover --ipcdisable --nat extip:127.0.0.1"
+        sh -c "geth --datadir /ethereum --networkid 1234 init /tmp/genesis.json && geth --datadir /ethereum --networkid 1234 --http --http.addr 0.0.0.0 --http.port 8545 --http.api engine,admin,eth,net,miner,web3,debug,personal,txpool --allow-insecure-unlock --nodiscover --authrpc.addr 0.0.0.0 --authrpc.port 8551 --authrpc.vhosts \"*\" --authrpc.jwtsecret /jwtsecret --ws --ws.addr=0.0.0.0 --ws.origins \"*\" --ws.api=admin,debug,eth,miner,net,personal,txpool,web3"
     ports:
       - "8545:8545"
+      - "8546:8546"
+      - "8551:8551"

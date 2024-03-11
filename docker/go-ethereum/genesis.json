@@ -9,7 +9,6 @@
     "constantinopleBlock": 0,
     "petersburgBlock": 0,
     "istanbulBlock": 0,
-	"isDev": true,
 	"terminalTotalDifficulty": 0,
   	"terminalTotalDifficultyPassed": true
   },
