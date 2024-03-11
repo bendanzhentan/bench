@@ -1,6 +1,9 @@
 package main
 
 import (
+	"context"
+	oplog "github.com/ethereum-optimism/optimism/op-service/log"
+	"github.com/ethereum-optimism/optimism/op-service/opio"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/ethereum/go-ethereum/log"
 	"github.com/urfave/cli/v2"
@@ -61,6 +64,20 @@ func main() {
 
 			return nil
 		},
+	}
+
+	// This is the most root context, used to propagate
+	// cancellations to all spawned application-level goroutines
+	ctx, cancel := context.WithCancel(context.Background())
+	go func() {
+		opio.BlockOnInterrupts()
+		cancel()
+	}()
+
+	oplog.SetupDefaults()
+	if err := app.RunContext(ctx, os.Args); err != nil {
+		log.Error("application failed", "err", err)
+		os.Exit(1)
 	}
 
 	//go func() {
