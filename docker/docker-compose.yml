@@ -1,19 +1,10 @@
-version: "3"
-
+version: '3'
 services:
-  # https://book.getfoundry.sh/reference/anvil
-  anvil:
-    image: ghcr.io/foundry-rs/foundry:nightly-3df3e0c0d72dedcba3ea57afd2f57ebd231624dd
-    entrypoint: |
-      anvil
-        --host 0.0.0.0
-        --port 8545
-        --init /genesis.json
-        --optimism
-        --no-mining
-        --disable-block-gas-limit
+  go-ethereum:
+    image: ethereum/client-go:release-1.13
+    volumes:
+      - ./go-ethereum/genesis.json:/tmp/genesis.json
+    entrypoint: >
+        sh -c "geth --datadir /ethereum --networkid 1234 init /tmp/genesis.json && geth --dev --datadir /ethereum --networkid 1234 --http --http.addr 0.0.0.0 --http.port 8545 --http.api eth,net,web3,debug,personal,txpool --allow-insecure-unlock --nodiscover --ipcdisable --nat extip:127.0.0.1"
     ports:
       - "8545:8545"
-    volumes:
-      - ./anvil/genesis.json:/genesis.json
-
