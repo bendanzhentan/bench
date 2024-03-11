@@ -6,6 +6,9 @@ import (
 	"github.com/ethereum-optimism/optimism/op-service/opio"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/ethereum/go-ethereum/log"
+	"github.com/ethereum/go-ethereum/node"
+	"github.com/ethereum/go-ethereum/rpc"
+	"github.com/status-im/keycard-go/hexutils"
 	"github.com/urfave/cli/v2"
 	"keroro520/bench/core"
 	"keroro520/bench/spec/simplecall"
@@ -22,6 +25,16 @@ func main() {
 				Required: true,
 			},
 			&cli.StringFlag{
+				Name:     "engine-url",
+				Usage:    "The Engine API endpoint of the existing chain",
+				Required: true,
+			},
+			&cli.StringFlag{
+				Name:     "engine-jwt-secret",
+				Usage:    "The JWT secret used to sign JWTs for the Engine API",
+				Required: true,
+			},
+			&cli.StringFlag{
 				Name:     "config-path",
 				Usage:    "The path to the configuration file",
 				Required: true,
@@ -34,6 +47,8 @@ func main() {
 		},
 		Action: func(context *cli.Context) error {
 			rpcURL := context.String("rpc-url")
+			engineURL := context.String("engine-url")
+			engineJWTSecret := context.String("engine-jwt-secret")
 			configPath := context.String("config-path")
 			_ = context.String("output-path")
 
@@ -47,9 +62,17 @@ func main() {
 				log.Crit("Failed to connect to the Ethereum client", "url", rpcURL, "err", err)
 			}
 
+			var jwtSecret32 [32]byte
+			copy(jwtSecret32[:], hexutils.HexToBytes(engineJWTSecret))
+			c, err := rpc.DialOptions(context.Context, engineURL, rpc.WithHTTPAuth(node.NewJWTAuth(jwtSecret32)))
+			if err != nil {
+				log.Crit("Failed to create Engine client", "err", err)
+			}
+			engine := ethclient.NewClient(c)
+
 			switch benchConfig.TxType {
 			case "simpletransfer":
-				err = simpletransfer.NewSpec(*benchConfig.SimpleTransfer).Run(context.Context, client)
+				err = simpletransfer.NewSpec(*benchConfig.SimpleTransfer).Run(context.Context, client, engine)
 				if err != nil {
 					log.Crit("Failed to run simpletransfer", "err", err)
 				}
