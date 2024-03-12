@@ -103,6 +103,7 @@ func main() {
 		os.Exit(1)
 	}
 
+	// TODO CTRL-C handling
 	//go func() {
 	//	stop := make(chan os.Signal, 1)
 	//	signal.Notify(stop, syscall.SIGINT, syscall.SIGTERM)
@@ -110,9 +111,4 @@ func main() {
 	//	log.Info("Received SIGINT or SIGTERM. Shutting down gracefully...")
 	//	os.Exit(0)
 	//}()
-
-	err := app.Run(os.Args)
-	if err != nil {
-		log.Crit("Failed to run application", "err", err)
-	}
 }

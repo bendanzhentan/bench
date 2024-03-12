@@ -3,93 +3,114 @@ package util
 import (
 	"context"
 	"fmt"
-	"time"
-
-	"github.com/ethereum-optimism/optimism/op-service/eth"
+	"github.com/ethereum/go-ethereum/beacon/engine"
 	"github.com/ethereum/go-ethereum/common"
-	"github.com/ethereum/go-ethereum/common/hexutil"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/ethclient"
+	"github.com/ethereum/go-ethereum/log"
+	"time"
 )
 
-// NOTE: We don't care about the OP's derivation rules because it's consensus rules while we are testing the execution part.
+func ProduceNextBlock(ctx context.Context, engineClient *ethclient.Client, txs types.Transactions) (*common.Hash, error) {
+	tip, err := engineClient.HeaderByNumber(ctx, nil)
+	if err != nil {
+		return nil, err
+	}
 
-func ProduceNextBlock(ctx context.Context, client *ethclient.Client, txs types.Transactions) (*common.Hash, error) {
-	txsData := make([]hexutil.Bytes, len(txs), len(txs))
+	txsData := make([][]byte, len(txs), len(txs))
 	for i, tx := range txs {
+		log.Info("Shot transaction", "hash", tx.Hash())
+
 		txData, err := tx.MarshalBinary()
 		if err != nil {
 			return nil, err
 		}
 		txsData[i] = txData
 	}
-	payloadAttributes := eth.PayloadAttributes{
-		// Leave default values for now.
-		Timestamp:             0,
-		PrevRandao:            eth.Bytes32{},
-		SuggestedFeeRecipient: common.Address{},
-		Withdrawals:           nil,
-		GasLimit:              nil,
-		ParentBeaconBlockRoot: nil,
 
+	fc := engine.ForkchoiceStateV1{
+		HeadBlockHash:      tip.Hash(),
+		SafeBlockHash:      tip.Hash(),
+		FinalizedBlockHash: tip.Hash(),
+	}
+	payloadAttributes := engine.PayloadAttributes{
+		// Leave default values for now.
+		Random:                common.Hash{},
+		SuggestedFeeRecipient: common.Address{},
+		Withdrawals:           []*types.Withdrawal{},
+
+		// Post-shanghai beacon root is required.
+		BeaconRoot: tip.ParentBeaconRoot,
+		GasLimit:   &tip.GasLimit,
+
+		// Timestamp interval is assumed to be 1 second.
+		Timestamp: tip.Time + 1,
 		// NoTxPool=true so that the block building process doesn't need to check the tx pool.
 		NoTxPool: true,
-		// Transactions to force into the block (always at the start of the transactions list).
+
+		// Optimism: Transactions to force into the block (always at the start of the transactions list).
+		//
+		// NOTE: We don't care about the OP's derivation rules because it's consensus rules while we are testing
+		// the execution part.
+		// NOTE: The force-inclusion transactions feature is only available for Optimism. So please make sure that
+		// the node is running using op-geth.
 		Transactions: txsData,
 	}
 
-	fcr, err := EngineForkchoiceUpdated(ctx, client, nil, &payloadAttributes)
+	fcr, err := EngineForkchoiceUpdated(ctx, engineClient, &fc, &payloadAttributes)
 	if err != nil {
 		return nil, err
 	}
 
-	paylaod, err := EngineGetPayload(ctx, client, *fcr.PayloadID)
+	payload, err := EngineGetPayload(ctx, engineClient, *fcr.PayloadID)
 	if err != nil {
 		return nil, err
 	}
 
-	status, err := EngineNewPayload(ctx, client, paylaod)
+	status, err := EngineNewPayload(ctx, engineClient, *payload.ExecutionPayload)
 	if err != nil {
 		return nil, err
 	}
 
-	fc := eth.ForkchoiceState{
+	fc = engine.ForkchoiceStateV1{
 		HeadBlockHash:      *status.LatestValidHash,
 		SafeBlockHash:      *status.LatestValidHash,
 		FinalizedBlockHash: *status.LatestValidHash,
 	}
-	_, err = EngineForkchoiceUpdated(ctx, client, &fc, nil)
+	_, err = EngineForkchoiceUpdated(ctx, engineClient, &fc, nil)
 	if err != nil {
 		return nil, err
 	}
+
+	log.Info("Shot block", "number", payload.ExecutionPayload.Number, "hash", status.LatestValidHash)
 
 	return status.LatestValidHash, nil
 }
 
-func EngineForkchoiceUpdated(ctx context.Context, client *ethclient.Client, fc *eth.ForkchoiceState, attributes *eth.PayloadAttributes) (*eth.ForkchoiceUpdatedResult, error) {
+func EngineForkchoiceUpdated(ctx context.Context, client *ethclient.Client, fc *engine.ForkchoiceStateV1, attributes *engine.PayloadAttributes) (*engine.ForkChoiceResponse, error) {
 	fcCtx, cancel := context.WithTimeout(ctx, time.Second*5)
 	defer cancel()
-	var result eth.ForkchoiceUpdatedResult
-	err := client.Client().CallContext(fcCtx, &result, "engine_forkchoiceUpdatedV1", fc, attributes)
+	var result *engine.ForkChoiceResponse
+	err := client.Client().CallContext(fcCtx, &result, "engine_forkchoiceUpdatedV2", fc, attributes)
 	if err != nil {
 		return nil, err
-	} else if result.PayloadStatus.Status != eth.ExecutionValid {
-		return nil, fmt.Errorf("payload execution failed: %s, status: %s", *result.PayloadStatus.ValidationError, result.PayloadStatus.Status)
+	} else if result.PayloadStatus.Status != "VALID" {
+		return nil, fmt.Errorf("payload execution failed: %v", result)
 	}
 
-	return &result, nil
+	return result, nil
 }
 
-func EngineGetPayload(ctx context.Context, client *ethclient.Client, payloadId eth.PayloadID) (*eth.ExecutionPayload, error) {
-	var result eth.ExecutionPayload
-	err := client.Client().CallContext(ctx, &result, "engine_getPayloadV1", payloadId)
-	return &result, err
+func EngineGetPayload(ctx context.Context, client *ethclient.Client, payloadId engine.PayloadID) (*engine.ExecutionPayloadEnvelope, error) {
+	var result *engine.ExecutionPayloadEnvelope
+	err := client.Client().CallContext(ctx, &result, "engine_getPayloadV2", payloadId)
+	return result, err
 }
 
-func EngineNewPayload(ctx context.Context, client *ethclient.Client, payload *eth.ExecutionPayload) (*eth.PayloadStatusV1, error) {
+func EngineNewPayload(ctx context.Context, client *ethclient.Client, payload engine.ExecutableData) (engine.PayloadStatusV1, error) {
 	execCtx, cancel := context.WithTimeout(ctx, time.Second*5)
 	defer cancel()
-	var result eth.PayloadStatusV1
-	err := client.Client().CallContext(execCtx, &result, "engine_newPayloadV1", payload)
-	return &result, err
+	var result engine.PayloadStatusV1
+	err := client.Client().CallContext(execCtx, &result, "engine_newPayloadV2", payload)
+	return result, err
 }
