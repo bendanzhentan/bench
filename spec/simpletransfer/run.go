@@ -20,14 +20,14 @@ func NewSpec(config Config) *Spec {
 	return &Spec{cursor: 0, Config: config}
 }
 
-func (spec *Spec) Run(ctx context.Context, client *ethclient.Client) error {
+func (spec *Spec) Run(ctx context.Context, client *ethclient.Client, engine *ethclient.Client) error {
 	for i := 0; i < spec.TxnsCount; i++ {
 		txs, err := spec.NextTxs(ctx, client)
 		if err != nil {
 			return err
 		}
 
-		_, err = util.ProduceNextBlock(ctx, client, txs)
+		_, err = util.ProduceNextBlock(ctx, engine, txs)
 		if err != nil {
 			return err
 		}
