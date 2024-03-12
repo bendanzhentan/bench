@@ -8,30 +8,20 @@ import (
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"github.com/ethereum/go-ethereum/log"
+	"math/big"
 	"time"
 )
 
-func ProduceNextBlock(ctx context.Context, engineClient *ethclient.Client, txs types.Transactions) (*common.Hash, error) {
-	tip, err := engineClient.HeaderByNumber(ctx, nil)
+func ProduceNextBlock(ctx context.Context, engineClient *ethclient.Client, txsData [][]byte, parentBlockNumber *big.Int) (*common.Hash, error) {
+	parent, err := engineClient.HeaderByNumber(ctx, parentBlockNumber)
 	if err != nil {
 		return nil, err
 	}
 
-	txsData := make([][]byte, len(txs), len(txs))
-	for i, tx := range txs {
-		log.Info("Shot transaction", "hash", tx.Hash())
-
-		txData, err := tx.MarshalBinary()
-		if err != nil {
-			return nil, err
-		}
-		txsData[i] = txData
-	}
-
 	fc := engine.ForkchoiceStateV1{
-		HeadBlockHash:      tip.Hash(),
-		SafeBlockHash:      tip.Hash(),
-		FinalizedBlockHash: tip.Hash(),
+		HeadBlockHash:      parent.Hash(),
+		SafeBlockHash:      parent.Hash(),
+		FinalizedBlockHash: parent.Hash(),
 	}
 	payloadAttributes := engine.PayloadAttributes{
 		// Leave default values for now.
@@ -40,11 +30,11 @@ func ProduceNextBlock(ctx context.Context, engineClient *ethclient.Client, txs t
 		Withdrawals:           []*types.Withdrawal{},
 
 		// Post-shanghai beacon root is required.
-		BeaconRoot: tip.ParentBeaconRoot,
-		GasLimit:   &tip.GasLimit,
+		BeaconRoot: parent.ParentBeaconRoot,
+		GasLimit:   &parent.GasLimit,
 
 		// Timestamp interval is assumed to be 1 second.
-		Timestamp: tip.Time + 1,
+		Timestamp: parent.Time + 1,
 		// NoTxPool=true so that the block building process doesn't need to check the tx pool.
 		NoTxPool: true,
 

@@ -5,6 +5,7 @@ import (
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/ethclient"
+	"github.com/ethereum/go-ethereum/log"
 	"keroro520/bench/util"
 	"math/big"
 )
@@ -29,7 +30,18 @@ func (spec *Spec) Run(ctx context.Context, client *ethclient.Client, engine *eth
 			return nil, err
 		}
 
-		_, err = util.ProduceNextBlock(ctx, engine, txs)
+		txsData := make([][]byte, len(txs), len(txs))
+		for j, tx := range txs {
+			log.Info("Shot transaction", "hash", tx.Hash())
+
+			txData, err := tx.MarshalBinary()
+			if err != nil {
+				return nil, err
+			}
+			txsData[j] = txData
+		}
+
+		_, err = util.ProduceNextBlock(ctx, engine, txsData, nil)
 		if err != nil {
 			return nil, err
 		}

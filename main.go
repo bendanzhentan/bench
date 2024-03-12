@@ -19,79 +19,125 @@ import (
 
 func main() {
 	app := &cli.App{
-		Flags: []cli.Flag{
-			&cli.StringFlag{
-				Name:     "rpc-url",
-				Usage:    "The RPC endpoint of the existing chain",
-				Required: true,
-			},
-			&cli.StringFlag{
-				Name:     "engine-url",
-				Usage:    "The Engine API endpoint of the existing chain",
-				Required: true,
-			},
-			&cli.StringFlag{
-				Name:     "engine-jwt-secret",
-				Usage:    "The JWT secret used to sign JWTs for the Engine API",
-				Required: true,
-			},
-			&cli.StringFlag{
-				Name:     "config-path",
-				Usage:    "The path to the configuration file",
-				Required: true,
-			},
-			&cli.StringFlag{
-				Name:     "output-path",
-				Usage:    "The file path for the output",
-				Required: true,
-			},
-		},
-		Action: func(context *cli.Context) error {
-			rpcURL := context.String("rpc-url")
-			engineURL := context.String("engine-url")
-			engineJWTSecret := context.String("engine-jwt-secret")
-			configPath := context.String("config-path")
-			outputPath := context.String("output-path")
+		Commands: []*cli.Command{
+			{
+				Name:  "export",
+				Usage: "Export transactions from the chain",
+				Flags: []cli.Flag{
+					&cli.StringFlag{
+						Name:     "rpc-url",
+						Usage:    "The RPC endpoint of the existing chain",
+						Required: true,
+					},
+					&cli.StringFlag{
+						Name:     "engine-url",
+						Usage:    "The Engine API endpoint of the existing chain",
+						Required: true,
+					},
+					&cli.StringFlag{
+						Name:     "engine-jwt-secret",
+						Usage:    "The JWT secret used to sign JWTs for the Engine API",
+						Required: true,
+					},
+					&cli.StringFlag{
+						Name:     "config-path",
+						Usage:    "The path to the configuration file",
+						Required: true,
+					},
+					&cli.StringFlag{
+						Name:     "output-path",
+						Usage:    "The file path for the output",
+						Required: true,
+					},
+				},
+				Action: func(context *cli.Context) error {
+					rpcURL := context.String("rpc-url")
+					engineURL := context.String("engine-url")
+					engineJWTSecret := context.String("engine-jwt-secret")
+					configPath := context.String("config-path")
+					outputPath := context.String("output-path")
 
-			benchConfig, err := core.LoadConfig(configPath)
-			if err != nil {
-				log.Crit("Failed to load configuration file", "err", err)
-			}
+					benchConfig, err := core.LoadConfig(configPath)
+					if err != nil {
+						log.Crit("Failed to load configuration file", "err", err)
+					}
 
-			client, err := ethclient.Dial(rpcURL)
-			if err != nil {
-				log.Crit("Failed to connect to the Ethereum client", "url", rpcURL, "err", err)
-			}
+					client, err := ethclient.Dial(rpcURL)
+					if err != nil {
+						log.Crit("Failed to connect to the Ethereum client", "url", rpcURL, "err", err)
+					}
 
-			var jwtSecret32 [32]byte
-			copy(jwtSecret32[:], hexutils.HexToBytes(engineJWTSecret))
-			c, err := rpc.DialOptions(context.Context, engineURL, rpc.WithHTTPAuth(node.NewJWTAuth(jwtSecret32)))
-			if err != nil {
-				log.Crit("Failed to create Engine client", "err", err)
-			}
-			engine := ethclient.NewClient(c)
+					var jwtSecret32 [32]byte
+					copy(jwtSecret32[:], hexutils.HexToBytes(engineJWTSecret))
+					c, err := rpc.DialOptions(context.Context, engineURL, rpc.WithHTTPAuth(node.NewJWTAuth(jwtSecret32)))
+					if err != nil {
+						log.Crit("Failed to create Engine client", "err", err)
+					}
+					engine := ethclient.NewClient(c)
 
-			switch benchConfig.TxType {
-			case "simpletransfer":
-				spec := simpletransfer.NewSpec(*benchConfig.SimpleTransfer)
-				txHashes, err := spec.Run(context.Context, client, engine)
-				if err != nil {
-					log.Crit("Failed to run simpletransfer", "err", err)
-				}
-				err = util.DumpTransactions(context.Context, client, txHashes, outputPath)
-				if err != nil {
-					log.Crit("Failed to dump transactions", "err", err)
-				}
-			case "simplecall":
-				err = simplecall.NewSpec(*benchConfig.SimpleCall).Run(context.Context, client)
-				if err != nil {
-					log.Crit("Failed to run simplecall", "err", err)
-				}
-			default:
-				log.Crit("Unknown transaction type: %s", benchConfig.TxType)
-			}
+					switch benchConfig.TxType {
+					case "simpletransfer":
+						spec := simpletransfer.NewSpec(*benchConfig.SimpleTransfer)
+						txHashes, err := spec.Run(context.Context, client, engine)
+						if err != nil {
+							log.Crit("Failed to run simpletransfer", "err", err)
+						}
+						err = util.Export(context.Context, client, txHashes, outputPath)
+						if err != nil {
+							log.Crit("Failed to dump transactions", "err", err)
+						}
+					case "simplecall":
+						err = simplecall.NewSpec(*benchConfig.SimpleCall).Run(context.Context, client)
+						if err != nil {
+							log.Crit("Failed to run simplecall", "err", err)
+						}
+					default:
+						log.Crit("Unknown transaction type: %s", benchConfig.TxType)
+					}
 
-			return nil
+					return nil
+				},
+			},
+			{
+				Name:  "import",
+				Usage: "import transactions to the chain",
+				Flags: []cli.Flag{
+					&cli.StringFlag{
+						Name:     "engine-url",
+						Usage:    "The Engine API endpoint of the existing chain",
+						Required: true,
+					},
+					&cli.StringFlag{
+						Name:     "engine-jwt-secret",
+						Usage:    "The JWT secret used to sign JWTs for the Engine API",
+						Required: true,
+					},
+					&cli.StringFlag{
+						Name:     "input-path",
+						Usage:    "The file path for the input",
+						Required: true,
+					},
+				},
+				Action: func(context *cli.Context) error {
+					engineURL := context.String("engine-url")
+					engineJWTSecret := context.String("engine-jwt-secret")
+					inputPath := context.String("input-path")
+
+					var jwtSecret32 [32]byte
+					copy(jwtSecret32[:], hexutils.HexToBytes(engineJWTSecret))
+					c, err := rpc.DialOptions(context.Context, engineURL, rpc.WithHTTPAuth(node.NewJWTAuth(jwtSecret32)))
+					if err != nil {
+						log.Crit("Failed to create Engine client", "err", err)
+					}
+					engine := ethclient.NewClient(c)
+
+					err = util.Import(context.Context, inputPath, engine)
+					if err != nil {
+						log.Crit("Failed to import transactions", "err", err)
+					}
+					return nil
+				},
+			},
 		},
 	}
 

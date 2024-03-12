@@ -2,15 +2,15 @@ package util
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"os"
 
 	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/ethclient"
-	"github.com/ethereum/go-ethereum/rlp"
 )
 
-func DumpTransactions(ctx context.Context, client *ethclient.Client, txHashes []common.Hash, outputPath string) error {
+func Export(ctx context.Context, client *ethclient.Client, txHashes []common.Hash, outputPath string) error {
 	file, err := os.OpenFile(outputPath, os.O_WRONLY|os.O_CREATE, 0644)
 	if err != nil {
 		return err
@@ -27,12 +27,12 @@ func DumpTransactions(ctx context.Context, client *ethclient.Client, txHashes []
 			return fmt.Errorf("transaction %s not found or pending", txHash.String())
 		}
 
-		// Append the RLP transaction to the file
-		encoded, err := rlp.EncodeToBytes(tx.Data())
+		marshaled, err := json.Marshal(tx)
+		_, err = file.Write(marshaled)
 		if err != nil {
 			return err
 		}
-		_, err = file.Write(append(encoded, '\n'))
+		_, err = file.WriteString("\n")
 		if err != nil {
 			return err
 		}
