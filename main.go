@@ -13,6 +13,7 @@ import (
 	"keroro520/bench/core"
 	"keroro520/bench/spec/simplecall"
 	"keroro520/bench/spec/simpletransfer"
+	"keroro520/bench/util"
 	"os"
 )
 
@@ -50,7 +51,7 @@ func main() {
 			engineURL := context.String("engine-url")
 			engineJWTSecret := context.String("engine-jwt-secret")
 			configPath := context.String("config-path")
-			_ = context.String("output-path")
+			outputPath := context.String("output-path")
 
 			benchConfig, err := core.LoadConfig(configPath)
 			if err != nil {
@@ -72,9 +73,14 @@ func main() {
 
 			switch benchConfig.TxType {
 			case "simpletransfer":
-				err = simpletransfer.NewSpec(*benchConfig.SimpleTransfer).Run(context.Context, client, engine)
+				spec := simpletransfer.NewSpec(*benchConfig.SimpleTransfer)
+				txHashes, err := spec.Run(context.Context, client, engine)
 				if err != nil {
 					log.Crit("Failed to run simpletransfer", "err", err)
+				}
+				err = util.DumpTransactions(context.Context, client, txHashes, outputPath)
+				if err != nil {
+					log.Crit("Failed to dump transactions", "err", err)
 				}
 			case "simplecall":
 				err = simplecall.NewSpec(*benchConfig.SimpleCall).Run(context.Context, client)

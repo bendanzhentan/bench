@@ -2,6 +2,7 @@ package simpletransfer
 
 import (
 	"context"
+	"github.com/ethereum/go-ethereum/common"
 	"github.com/ethereum/go-ethereum/core/types"
 	"github.com/ethereum/go-ethereum/ethclient"
 	"keroro520/bench/util"
@@ -20,20 +21,25 @@ func NewSpec(config Config) *Spec {
 	return &Spec{cursor: 0, Config: config}
 }
 
-func (spec *Spec) Run(ctx context.Context, client *ethclient.Client, engine *ethclient.Client) error {
+func (spec *Spec) Run(ctx context.Context, client *ethclient.Client, engine *ethclient.Client) ([]common.Hash, error) {
+	shotTxs := make([]common.Hash, 0)
 	for i := 0; i < spec.TxnsCount; i++ {
 		txs, err := spec.NextTxs(ctx, client)
 		if err != nil {
-			return err
+			return nil, err
 		}
 
 		_, err = util.ProduceNextBlock(ctx, engine, txs)
 		if err != nil {
-			return err
+			return nil, err
+		}
+
+		for _, tx := range txs {
+			shotTxs = append(shotTxs, tx.Hash())
 		}
 	}
 
-	return nil
+	return shotTxs, nil
 }
 
 func (spec *Spec) NextTxs(ctx context.Context, client *ethclient.Client) (types.Transactions, error) {
