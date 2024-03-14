@@ -11,7 +11,7 @@ import (
 	"os"
 )
 
-func Import(ctx context.Context, inputFile string, engineClient *ethclient.Client, blockTxsCount int) error {
+func Import(ctx context.Context, inputFile string, engineClient *ethclient.Client, txsPerBlock int) error {
 	file, err := os.Open(inputFile)
 	if err != nil {
 		return err
@@ -42,7 +42,7 @@ func Import(ctx context.Context, inputFile string, engineClient *ethclient.Clien
 		}
 
 		blockTxs = append(blockTxs, txData)
-		if len(blockTxs) < blockTxsCount {
+		if len(blockTxs) < txsPerBlock {
 			continue
 		}
 
