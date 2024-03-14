@@ -78,11 +78,15 @@ func main() {
 					switch benchConfig.TxType {
 					case "simpletransfer":
 						spec := simpletransfer.NewSpec(*benchConfig.SimpleTransfer)
+						blockNumber, err := client.BlockNumber(context.Context)
+						if err != nil {
+							log.Crit("Failed to get block number", "err", err)
+						}
 						txHashes, err := spec.Run(context.Context, client, engine)
 						if err != nil {
 							log.Crit("Failed to run simpletransfer", "err", err)
 						}
-						err = util.Export(context.Context, client, txHashes, outputPath)
+						err = util.Export(context.Context, client, blockNumber, txHashes, outputPath)
 						if err != nil {
 							log.Crit("Failed to dump transactions", "err", err)
 						}
@@ -117,11 +121,17 @@ func main() {
 						Usage:    "The file path for the input",
 						Required: true,
 					},
+					&cli.IntFlag{
+						Name:     "block-txs-count",
+						Usage:    "The number of transactions to include in each block",
+						Required: true,
+					},
 				},
 				Action: func(context *cli.Context) error {
 					engineURL := context.String("engine-url")
 					engineJWTSecret := context.String("engine-jwt-secret")
 					inputPath := context.String("input-path")
+					blockTxsCount := context.Int("block-txs-count")
 
 					var jwtSecret32 [32]byte
 					copy(jwtSecret32[:], hexutils.HexToBytes(engineJWTSecret))
@@ -131,7 +141,7 @@ func main() {
 					}
 					engine := ethclient.NewClient(c)
 
-					err = util.Import(context.Context, inputPath, engine)
+					err = util.Import(context.Context, inputPath, engine, blockTxsCount)
 					if err != nil {
 						log.Crit("Failed to import transactions", "err", err)
 					}

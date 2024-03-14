@@ -10,12 +10,19 @@ import (
 	"github.com/ethereum/go-ethereum/ethclient"
 )
 
-func Export(ctx context.Context, client *ethclient.Client, txHashes []common.Hash, outputPath string) error {
-	file, err := os.OpenFile(outputPath, os.O_WRONLY|os.O_CREATE, 0644)
+func Export(ctx context.Context, client *ethclient.Client, blockNumber uint64, txHashes []common.Hash, outputPath string) error {
+	file, err := os.OpenFile(outputPath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, 0644)
 	if err != nil {
 		return err
 	}
 	defer file.Close()
+
+	marshaled, _ := json.Marshal(blockNumber)
+	_, err = file.Write(marshaled)
+	if err != nil {
+		return err
+	}
+	file.WriteString("\n")
 
 	for _, txHash := range txHashes {
 		tx, isPending, err := client.TransactionByHash(ctx, txHash)
