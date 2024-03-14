@@ -28,3 +28,7 @@ go run . import \
     --input-path load.json \
     --block-txs-count 201
 ```
+
+## Configuration
+
+See [`predefined/simpletransfer.toml`](./predefined/simpletransfer.toml) for configuration example.
